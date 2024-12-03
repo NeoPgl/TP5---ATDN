@@ -3,15 +3,6 @@
 # M1 OIVM
 
 
-
-
-# #
-# # =================================================Exercice 1 : =================================================
-# #
-
-
-
-
 # Importation des bibliothèques nécessaires
 import numpy as np
 import pandas as pd
@@ -25,6 +16,19 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 from sklearn.pipeline import Pipeline
 import xgboost as xgb
+from sklearn.feature_extraction.text import CountVectorizer
+from hmmlearn import hmm
+from sklearn.preprocessing import LabelEncoder
+
+
+
+
+
+# #
+# # =================================================Exercice 1 : =================================================
+# #
+
+
 
 
 # 1. Charger le jeu de données
@@ -131,7 +135,6 @@ linear_svm(X_train, X_test, y_train, y_test)
 # =================================================Exercice 2 : =================================================
 #
 
-# Exercice 2: Ensemble Learning - Random Forest and XGBoost
 def ensemble_models(X_train, X_test, y_train, y_test):
     # Utilisation du TfidfVectorizer pour transformer le texte en vecteurs numériques
     tfidf = TfidfVectorizer(stop_words='english')
@@ -201,3 +204,50 @@ def ensemble_models(X_train, X_test, y_train, y_test):
 
 # Appel de la fonction avec les ensembles d'entraînement et de test
 ensemble_models(X_train, X_test, y_train, y_test)
+
+
+
+
+#
+# =================================================Exercice 3 : =================================================
+#
+
+
+
+# Séparer les features et les labels
+X = data[data.columns[1]]  # Texte
+y = data[data.columns[0]]  # Labels (ham, spam)
+
+# Diviser les données en ensembles d'entraînement et de test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Utilisation des n-grammes pour la vectorisation
+vectorizer = CountVectorizer(ngram_range=(1, 2), stop_words='english')  # Utilisation des bigrammes
+X_train_ngram = vectorizer.fit_transform(X_train)
+X_test_ngram = vectorizer.transform(X_test)
+
+# Si X_train_ngram est une matrice sparse, convertissez-la en une matrice dense
+X_train_dense = X_train_ngram.toarray()
+X_test_dense = X_test_ngram.toarray()
+
+# Encoder les labels "ham" et "spam"
+label_encoder = LabelEncoder()
+y_train_hmm = label_encoder.fit_transform(y_train)
+y_test_hmm = label_encoder.transform(y_test)
+
+# Définir le modèle HMM avec 2 états (ham et spam)
+model_hmm = hmm.MultinomialHMM(n_components=2, random_state=42)
+
+# Entraîner le modèle HMM
+lengths = [len(X_train)]  # Si toutes les données sont considérées comme une seule séquence
+model_hmm.fit(X_train_dense, lengths=lengths)
+
+# Prédiction des labels sur les données de test
+y_pred_hmm = model_hmm.predict(X_test_dense)
+
+# Décodage des résultats
+y_pred_hmm_decoded = label_encoder.inverse_transform(y_pred_hmm)
+
+# Rapport de classification
+print("\nHMM Classification Report:")
+print(classification_report(y_test, y_pred_hmm_decoded))
