@@ -19,6 +19,8 @@ import xgboost as xgb
 from sklearn.feature_extraction.text import CountVectorizer
 from hmmlearn import hmm
 from sklearn.preprocessing import LabelEncoder
+import shap
+
 
 
 
@@ -251,3 +253,48 @@ y_pred_hmm_decoded = label_encoder.inverse_transform(y_pred_hmm)
 # Rapport de classification
 print("\nHMM Classification Report:")
 print(classification_report(y_test, y_pred_hmm_decoded))
+
+
+
+#
+# =================================================Exercice 4 : =================================================
+#
+
+# Fonction pour expliquer le modèle Random Forest avec SHAP
+def explain_rf_with_shap(X_train, y_train, rf_best_estimator):
+    # Conversion des données en vecteurs TF-IDF
+    tfidf = TfidfVectorizer(stop_words='english')
+    X_train_tfidf = tfidf.fit_transform(X_train)
+    feature_names = tfidf.get_feature_names_out()
+
+    # Création d'un explainer SHAP
+    explainer = shap.TreeExplainer(rf_best_estimator.named_steps['randomforest'])
+    
+    # Calcul des valeurs SHAP pour un sous-ensemble des données d'entraînement
+    shap_values = explainer.shap_values(X_train_tfidf[:100].toarray())  # Pour éviter les problèmes de performance
+
+    # Résumé des valeurs SHAP pour la classe "Spam"
+    print("\nSHAP Summary Plot for the Random Forest Model:")
+    shap.summary_plot(shap_values[1], X_train_tfidf[:100].toarray(), feature_names=feature_names)
+
+    # Fonction pour obtenir les caractéristiques les plus influentes
+    def get_top_features(shap_values, feature_names, n=10):
+        avg_shap_values = np.abs(shap_values[1]).mean(axis=0)
+        top_indices = avg_shap_values.argsort()[-n:][::-1]
+        return [(feature_names[i], avg_shap_values[i]) for i in top_indices]
+
+    # Affichage des top caractéristiques
+    top_features = get_top_features(shap_values, feature_names)
+    print("\nTop features for Spam classification using Random Forest:")
+    for feature, importance in top_features:
+        print(f"{feature}: {importance:.4f}")
+
+# Réentraîner un modèle Random Forest pour l'explication SHAP
+rf_pipeline = Pipeline([
+    ('tfidf', TfidfVectorizer(stop_words='english')),
+    ('randomforest', RandomForestClassifier(n_estimators=100, random_state=42))
+])
+rf_pipeline.fit(X_train, y_train)
+
+# Appel de la fonction pour expliquer les décisions du modèle avec SHAP
+explain_rf_with_shap(X_train, y_train, rf_pipeline)
