@@ -5,9 +5,9 @@
 
 
 
-#
-# =================================================Exercice 1 : =================================================
-#
+# #
+# # =================================================Exercice 1 : =================================================
+# #
 
 
 
@@ -78,7 +78,7 @@ def non_linear_svm(X_train, X_test, y_train, y_test):
 
     
     
-     # Matrice de confusion
+    # Matrice de confusion - SVM NON LINEAIRE
     cm = confusion_matrix(y_test, y_pred)
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Ham', 'Spam'], yticklabels=['Ham', 'Spam'])
@@ -112,7 +112,7 @@ def linear_svm(X_train, X_test, y_train, y_test):
     print("\nLinear SVM Classification Report:")
     print(classification_report(y_test, y_pred_linear))
     
-      # Matrice de confusion
+    # Matrice de confusion - SVM LINEAIRE
     cm = confusion_matrix(y_test, y_pred_linear)
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', xticklabels=['Ham', 'Spam'], yticklabels=['Ham', 'Spam'])
@@ -126,3 +126,78 @@ linear_svm(X_train, X_test, y_train, y_test)
 
 
 
+
+#
+# =================================================Exercice 2 : =================================================
+#
+
+# Exercice 2: Ensemble Learning - Random Forest and XGBoost
+def ensemble_models(X_train, X_test, y_train, y_test):
+    # Utilisation du TfidfVectorizer pour transformer le texte en vecteurs numériques
+    tfidf = TfidfVectorizer(stop_words='english')
+
+    # Pipeline pour RandomForest avec TF-IDF
+    rf_params = {
+        'randomforest__n_estimators': [100, 200],
+        'randomforest__max_depth': [None, 10, 20],
+        'randomforest__min_samples_split': [2, 5]
+    }
+
+    rf_pipeline = Pipeline([
+        ('tfidf', tfidf),
+        ('randomforest', RandomForestClassifier())
+    ])
+
+    rf_grid = GridSearchCV(rf_pipeline, rf_params, cv=5)
+    rf_grid.fit(X_train, y_train)
+
+    print(f"Meilleurs paramètres pour Random Forest: {rf_grid.best_params_}")
+
+    # Pipeline pour XGBoost avec TF-IDF
+    xgb_params = {
+        'xgbclassifier__n_estimators': [100, 200],
+        'xgbclassifier__learning_rate': [0.01, 0.1],
+        'xgbclassifier__max_depth': [3, 5]
+    }
+
+    xgb_pipeline = Pipeline([
+        ('tfidf', tfidf),
+        ('xgbclassifier', xgb.XGBClassifier())
+    ])
+
+    xgb_grid = GridSearchCV(xgb_pipeline, xgb_params, cv=5)
+    xgb_grid.fit(X_train, y_train)
+
+    print(f"Meilleurs paramètres pour XGBoost: {xgb_grid.best_params_}")
+
+    # Affichage des rapports de classification
+    print("\nRandom Forest Classification Report:")
+    y_pred_rf = rf_grid.predict(X_test)
+    print(classification_report(y_test, y_pred_rf))
+
+    print("\nXGBoost Classification Report:")
+    y_pred_xgb = xgb_grid.predict(X_test)
+    print(classification_report(y_test, y_pred_xgb))
+
+    # Courbe ROC pour les deux modèles
+    def plot_roc_curve(model, X_test, y_test, title):
+        y_pred_proba = model.predict_proba(X_test)[:, 1]
+        fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+        roc_auc = auc(fpr, tpr)
+
+        plt.plot(fpr, tpr, label=f'{title} (AUC = {roc_auc:.2f})')
+
+    plt.figure(figsize=(10, 6))
+    plot_roc_curve(rf_grid.best_estimator_, X_test, y_test, 'Random Forest')
+    plot_roc_curve(xgb_grid.best_estimator_, X_test, y_test, 'XGBoost')
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve Comparison')
+    plt.legend(loc='lower right')
+    plt.show()
+
+    return rf_grid.best_estimator_, xgb_grid.best_estimator_
+
+# Appel de la fonction avec les ensembles d'entraînement et de test
+ensemble_models(X_train, X_test, y_train, y_test)
